@@ -66,8 +66,10 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <main className="flex-1 p-6 relative">
-          <SidebarTrigger className="-ml-1" />
+        <main className="flex-1 relative">
+          <div className="ml-5 mt-5">
+            <SidebarTrigger className="" />
+          </div>
 
           {children}
         </main>
