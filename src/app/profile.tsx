@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import NewRecipeForm from "@/components/custom/NewRecipeForm";
 
-export default function HomePage2() {
+export default function ProfilePage() {
   const recipes = [
     {
       title: "Блюдо 1",

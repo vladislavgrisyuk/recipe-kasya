@@ -45,7 +45,7 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenu>
                   {[
                     { Icon: Home, label: "Главная", href: "/" },
-                    { Icon: User, label: "Профиль", href: "/profile" },
+                    { Icon: User, label: "Профиль", href: "/foodMenu" },
                     { Icon: Settings, label: "Настройки", href: "/settings" },
                     { Icon: LogOut, label: "Выход", href: "/logout" },
                   ].map(({ Icon, label, href }) => (

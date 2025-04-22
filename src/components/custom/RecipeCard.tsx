@@ -37,7 +37,7 @@ export default function RecipeCard({
         </div>
         <div className="pl-4 pr-4 pb-4 space-y-2">
           <h2 className="text-xl font-semibold">{title}</h2>
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2">
             {description}
           </p>
           <div className="flex justify-between text-xs text-muted-foreground pt-2">
