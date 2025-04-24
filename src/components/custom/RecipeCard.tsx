@@ -1,10 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import styles from "@/app/styles/common.module.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faUtensils } from "@fortawesome/free-solid-svg-icons";
+import { Clock, Utensils } from "lucide-react";
 
 interface RecipeCardProps {
   title: string;
@@ -32,7 +31,7 @@ export default function RecipeCard({
             alt={title}
             width={400}
             height={200}
-            className={`${styles.recipeImg} w-full h-48 object-cover"`}
+            className={`${styles.recipeImg} w-full h-48 object-cover`}
           />
         </div>
         <div className="pl-4 pr-4 pb-4 space-y-2">
@@ -42,12 +41,10 @@ export default function RecipeCard({
           </p>
           <div className="flex justify-between text-xs text-muted-foreground pt-2">
             <span className="flex items-center">
-              <FontAwesomeIcon icon={faClock} className="mr-1" />
-              {cookTime}
+              <Clock className="w-3 h-3 mr-1" /> {cookTime}
             </span>
             <span className="flex items-center">
-              <FontAwesomeIcon icon={faUtensils} className="mr-1" />
-              {ingredientsCount} ингр.
+              <Utensils className="w-3 h-3 mr-1" /> {ingredientsCount} ингр.
             </span>
           </div>
         </div>

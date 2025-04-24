@@ -20,6 +20,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import NewRecipeForm from "@/components/custom/NewRecipeForm";
+import { List, Star, PlusCircle, Utensils } from "lucide-react";
 
 export default function HomePage2() {
   const recipes = [
@@ -82,12 +83,10 @@ export default function HomePage2() {
           <div className="flex items-center justify-between px-5">
             <TabsList className="ml-2 flex items-center shadow-md">
               <TabsTrigger value="preview">
-                <FontAwesomeIcon icon={faListUl} className="" />
-                Весь список
+                <List className="w-4 h-4 mr-1" /> Весь список
               </TabsTrigger>
               <TabsTrigger value="code">
-                <FontAwesomeIcon icon={faStar} className="" />
-                Избранное
+                <Star fill="currentColor" className="w-4 h-4 mr-1" /> Избранное
               </TabsTrigger>
             </TabsList>
             <DialogTrigger asChild className="shadow-xl">

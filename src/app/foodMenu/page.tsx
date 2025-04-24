@@ -6,16 +6,6 @@ import { addDays } from "date-fns";
 
 export default function ProfilePage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedDay, setSelectedDay] = useState<number>(0);
-  const days = [
-    "Понедельник",
-    "Вторник",
-    "Среда",
-    "Четверг",
-    "Пятница",
-    "Суббота",
-    "Воскресенье",
-  ];
 
   const tomorrow = addDays(new Date(), 1);
 
@@ -25,18 +15,34 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-[5fr_1fr] gap-4">
         {/* Левая часть: меню на каждый день */}
-        <div className="bg-muted/20 rounded-xl p-4">
-          <div className="grid grid-cols-4 auto-rows-[150px] gap-4">
-            {days.map((day, idx) => (
-              <div
-                key={day}
-                onClick={() => setSelectedDay(idx)}
-                className={`cursor-pointer rounded-lg bg-white shadow flex items-center justify-center text-center p-4 transition-all duration-200
-                  ${selectedDay === idx ? "row-span-2" : "row-span-1"}`}
-              >
-                <span className="font-medium">{day}</span>
-              </div>
-            ))}
+        <div className="bg-muted rounded-xl p-4">
+          <div className="gap-4">
+            {" "}
+            {/* grid grid-cols-4 auto-rows-[150px] */}
+            <div className="flex">
+              <p className="text-xm font-bold flex-1 mb-4 text-center">
+                Завтрак
+              </p>
+              <p className="text-xm font-bold flex-1 mb-4 text-center">
+                Завтрак
+              </p>
+              <p className="text-xm font-bold flex-1 mb-4 text-center">
+                Завasasdтрак
+              </p>
+              <p className="text-xm font-bold flex-1 mb-4 text-center">
+                Завтрак
+              </p>
+              <p className="text-xm font-bold flex-1 mb-4 text-center">
+                Завтрак
+              </p>
+            </div>
+            <div className="flex">
+              <div className="bg-green-800 flex-1 m-3">asd</div>
+              <div className="bg-green-800 flex-1 m-3">asd</div>
+              <div className="bg-green-800 flex-1 m-3">asd</div>
+              <div className="bg-green-800 flex-1 m-3">asd</div>
+              <div className="bg-green-800 flex-1 m-3">asd</div>
+            </div>
           </div>
         </div>
 
