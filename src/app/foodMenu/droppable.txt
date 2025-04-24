@@ -1,0 +1,157 @@
+"use client";
+
+import { useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { addDays } from "date-fns";
+import { DndContext, closestCenter, DragOverlay } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+export default function ProfilePage() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const tomorrow = addDays(new Date(), 1);
+
+  const meals = ["Завтрак", "Перекус", "Обед", "Перекус", "Ужин"];
+  const [mealContents, setMealContents] = useState<string[][]>([
+    ["Овсянка", "Банан"],
+    ["Йогурт"],
+    ["Курица", "Рис", "Овощи"],
+    ["Орехи", "Яблоко"],
+    ["Рыба", "Картофель"],
+  ]);
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  function handleDragStart(event: any) {
+    setActiveId(event.active.id);
+  }
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over || active.id === over.id) return;
+
+    const [fromMealIndex, fromItemIndex] = active.id.split("-").map(Number);
+    const [toMealIndex] = over.id.split("-").map(Number);
+
+    const item = mealContents[fromMealIndex][fromItemIndex];
+    const updatedContents = [...mealContents];
+    updatedContents[fromMealIndex] = updatedContents[fromMealIndex].filter(
+      (_, i) => i !== fromItemIndex
+    );
+    updatedContents[toMealIndex] = [...updatedContents[toMealIndex], item];
+
+    setMealContents(updatedContents);
+  }
+
+  return (
+    <main className="w-full h-screen p-5">
+      <h1 className="text-3xl font-bold mb-4">Добро пожаловать!</h1>
+
+      <div className="grid grid-cols-[5fr_1fr] gap-4 h-full">
+        <div className="bg-muted rounded-xl p-4 h-full">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex">
+              {meals.map((meal, index) => (
+                <p
+                  key={index}
+                  className="text-xm font-bold flex-1 mb-4 text-center"
+                >
+                  {meal}
+                </p>
+              ))}
+            </div>
+            <div className="flex flex-1">
+              <DndContext
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                {mealContents.map((products, mealIndex) => (
+                  <div
+                    key={mealIndex}
+                    className="bg-green-800 text-white flex-1 m-3 p-2 rounded"
+                  >
+                    <SortableContext
+                      items={products.map((_, i) => `${mealIndex}-${i}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <ul className="list-disc list-inside space-y-1">
+                        {products.map((product, productIndex) => (
+                          <SortableItem
+                            key={`${mealIndex}-${productIndex}`}
+                            id={`${mealIndex}-${productIndex}`}
+                            label={product}
+                          />
+                        ))}
+                      </ul>
+                    </SortableContext>
+                  </div>
+                ))}
+
+                <DragOverlay>
+                  {activeId ? (
+                    <SortableItem
+                      id={activeId}
+                      label={getLabelById(activeId)}
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-muted/40 rounded-xl p-4 flex flex-col gap-4 h-full">
+          <label className="text-sm font-medium">Дата</label>
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDate}
+            className="rounded-md border shadow flex-1"
+            modifiers={{ special: tomorrow }}
+            modifiersClassNames={{ special: "bg-green-200 text-green-900" }}
+          />
+        </div>
+      </div>
+    </main>
+  );
+
+  function getLabelById(id: string): string {
+    const [mealIdx, prodIdx] = id.split("-").map(Number);
+    return mealContents?.[mealIdx]?.[prodIdx] ?? "";
+  }
+}
+
+function SortableItem({ id, label }: { id: string; label: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-move"
+    >
+      {label}
+    </li>
+  );
+}

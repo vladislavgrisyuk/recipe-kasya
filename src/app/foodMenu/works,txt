@@ -1,0 +1,292 @@
+"use client";
+
+import React, { useState } from "react";
+import { Calendar } from "@/components/ui/calendar"; // Assuming this path is correct
+import { addDays } from "date-fns";
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  UniqueIdentifier,
+  // DragOverlay, // Пока не используем, но это следующий шаг при необходимости
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+
+// --- Draggable Item Component ---
+// Обертка для DraggableItem
+function DraggableItemWrapper({
+  id,
+  content,
+}: {
+  id: UniqueIdentifier;
+  content: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging, // Отслеживаем состояние перетаскивания
+  } = useDraggable({
+    id: id,
+    data: {
+      content: content,
+    },
+  });
+
+  // Стили dnd-kit для позиционирования во время перетаскивания
+  const dndKitStyle: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    // Важно: Убираем transition для transform, чтобы не конфликтовать с dnd-kit
+  };
+
+  // Стили для внешнего вида и состояния (кроме transform)
+  const motionStyle: React.CSSProperties = {
+    opacity: isDragging ? 0.5 : 1, // Плавная прозрачность при перетаскивании
+    transition: "all opacity 0.2s ease-in-out", // Только для opacity
+    touchAction: "none",
+    cursor: isDragging ? "grabbing" : "grab",
+    // boxShadow: isDragging ? "0 5px 15px rgba(0,0,0,0.2)" : "none",
+    position: "relative",
+    zIndex: isDragging ? 20 : 10,
+  };
+
+  return (
+    // Используем motion.li, но БЕЗ layout пропа
+    <motion.li
+      ref={setNodeRef} // Ref от useDraggable
+      // layout // УБИРАЕМ layout здесь, чтобы избежать конфликта
+      initial={{ opacity: 0 }} // Упрощенная анимация появления (только прозрачность)
+      animate={{ opacity: 1 }} //
+      exit={{ opacity: 0 }} // Упрощенная анимация исчезновения
+      transition={{ opacity: { duration: 0.2 } }} // Анимация только для opacity
+      style={{ ...motionStyle, ...dndKitStyle }} // Объединяем стили
+      {...listeners}
+      {...attributes}
+      className="bg-card shadow-lg text-foreground p-1 rounded text-sm mb-1 list-none h-15 p-2" // Убрали origin-top, т.к. не анимируем высоту li
+    >
+      {content}
+    </motion.li>
+  );
+}
+
+// --- Droppable Column Component ---
+interface DroppableColumnProps {
+  id: UniqueIdentifier;
+  items: string[];
+}
+
+function DroppableColumn({ id, items }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: id,
+  });
+
+  const style: React.CSSProperties = {
+    border: `1px dashed ${isOver ? "#4ade80" : "transparent"}`,
+    minHeight: "100px",
+    backgroundColor: isOver ? "rgba(34, 197, 94, 0.1)" : undefined,
+    transitionProperty: "border-color, background-color",
+    transitionDuration: "0.2s",
+    transitionTimingFunction: "ease-in-out",
+    // Важно: Обеспечиваем overflow: hidden, чтобы дочерние layout-анимации не вылезали
+    // хотя с удалением layout у li это менее критично, но может помочь
+  };
+
+  return (
+    // Внешний div ОСТАЕТСЯ motion.div с layout для анимации высоты контейнера
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      layout // ОСТАВЛЯЕМ layout здесь для анимации высоты колонки
+      transition={{ layout: { duration: 0.1, ease: "easeOut" } }}
+      className="bg-background/50 shadow-lg text-muted-foreground flex-1 m-3 p-2 rounded flex flex-col"
+    >
+      {/* AnimatePresence нужен для анимации exit у motion.li */}
+      <AnimatePresence>
+        {/* ul можно сделать обычным, т.к. layout анимируется на motion.div выше */}
+        <ul className="space-y-1 flex-grow">
+          {items.map((product, pIndex) => {
+            // Генерируем ID для dnd-kit на основе текущего индекса колонки и элемента
+            const dndId = `item-${id.toString().split("-")[1]}-${pIndex}`;
+            // Генерируем React key, который должен быть стабильным для элемента данных
+            // Если product уникален глобально, можно использовать его.
+            // Иначе, нужна более сложная стратегия или предположение, что порядок в initialMealContents стабилен.
+            // Используем комбинацию для большей уникальности ключа.
+            const reactKey = `col-${
+              id.toString().split("-")[1]
+            }-item-${pIndex}-${product}`;
+
+            return (
+              <DraggableItemWrapper
+                key={reactKey} // Стабильный ключ для React
+                id={dndId} // ID для dnd-kit
+                content={product}
+              />
+            );
+          })}
+        </ul>
+      </AnimatePresence>
+
+      {/* Пустые состояния */}
+      {isOver && items.length === 0 && (
+        <div className="text-center text-muted-foreground italic text-xs p-2 mt-auto">
+          Drop here
+        </div>
+      )}
+      {items.length === 0 && !isOver && (
+        <div className="text-center text-gray-500 italic text-xs p-2 mt-auto">
+          Empty
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// --- Main Page Component --- (Без изменений в логике state и dnd, только структура рендера)
+export default function ProfilePage() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const tomorrow = addDays(new Date(), 1);
+
+  const initialMeals = ["Завтрак", "Перекус", "Обед", "Перекус", "Ужин"];
+  const initialMealContents: string[][] = [
+    ["Овсянка", "Банан"],
+    ["Йогурт"],
+    ["Курица", "Рис", "Овощи"],
+    ["Орехи", "Яблоко"],
+    ["Рыба", "Картофель"],
+  ];
+
+  const [meals, setMeals] = useState(initialMeals);
+  const [mealContents, setMealContents] = useState(initialMealContents);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const activeIdString = String(active.id);
+      const overIdString = String(over.id);
+
+      const parts = activeIdString.split("-");
+      if (parts.length !== 3 || parts[0] !== "item") {
+        console.warn("Unexpected active ID format:", activeIdString);
+        return;
+      }
+      const sourceColumnIndex = parseInt(parts[1], 10);
+
+      const overParts = overIdString.split("-");
+      if (overParts.length !== 2 || overParts[0] !== "column") {
+        console.warn("Unexpected over ID format:", overIdString);
+        return;
+      }
+      const targetColumnIndex = parseInt(overParts[1], 10);
+
+      const draggedItemContent = active.data.current?.content;
+
+      if (
+        isNaN(sourceColumnIndex) ||
+        isNaN(targetColumnIndex) ||
+        !draggedItemContent
+      ) {
+        console.error("Error parsing drag/drop IDs or finding content");
+        return;
+      }
+
+      setMealContents((prevContents) => {
+        // Важно: Создаем *новый* массив верхнего уровня и *новые* массивы для колонок
+        const newContents = [...prevContents]; // Копия верхнего уровня
+        const sourceCol = [...newContents[sourceColumnIndex]]; // Копия исходной колонки
+        const targetCol =
+          sourceColumnIndex === targetColumnIndex
+            ? sourceCol
+            : [...newContents[targetColumnIndex]]; // Копия целевой (или та же ссылка, если колонка одна)
+
+        const actualSourceItemIndex = sourceCol.findIndex(
+          (item) => item === draggedItemContent
+        );
+
+        if (actualSourceItemIndex === -1) {
+          console.warn(
+            "Dragged item not found in source column state. State might be stale."
+          );
+          return prevContents;
+        }
+
+        const [removedItem] = sourceCol.splice(actualSourceItemIndex, 1);
+        targetCol.push(removedItem);
+
+        // Обновляем массив верхнего уровня новыми копиями измененных колонок
+        newContents[sourceColumnIndex] = sourceCol;
+        if (sourceColumnIndex !== targetColumnIndex) {
+          newContents[targetColumnIndex] = targetCol;
+        }
+
+        return newContents;
+      });
+    }
+  }
+
+  return (
+    <LayoutGroup>
+      {" "}
+      {/* Оставляем LayoutGroup */}
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <main className="w-full p-5">
+          <h1 className="text-3xl font-bold mb-4">Добро пожаловать!</h1>
+
+          <div className="grid grid-cols-[5fr_1fr] gap-4">
+            <div className="bg-muted/30 rounded-xl p-4">
+              <div className="flex mb-2">
+                {meals.map((meal, index) => (
+                  <p
+                    key={index}
+                    className="text-xm font-bold flex-1 text-center"
+                  >
+                    {meal}
+                  </p>
+                ))}
+              </div>
+              <div className="flex flex-wrap md:flex-nowrap">
+                {mealContents.map((products, colIndex) => (
+                  <DroppableColumn
+                    key={`column-${colIndex}`}
+                    id={`column-${colIndex}`}
+                    items={products}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-muted/30 rounded-xl p-4 flex flex-col gap-4">
+              <label className="text-sm font-medium">Дата</label>
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="rounded-md border shadow"
+                modifiers={{ special: tomorrow }}
+                modifiersClassNames={{
+                  special: "bg-green-200 text-green-900",
+                }}
+              />
+            </div>
+          </div>
+        </main>
+      </DndContext>
+    </LayoutGroup>
+  );
+}

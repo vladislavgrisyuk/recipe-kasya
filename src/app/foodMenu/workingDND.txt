@@ -1,0 +1,243 @@
+"use client";
+
+import React, { useState } from "react";
+import { Calendar } from "@/components/ui/calendar"; // Assuming this path is correct
+import { addDays } from "date-fns";
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  UniqueIdentifier,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+
+// --- Draggable Item Component ---
+interface DraggableItemProps {
+  id: UniqueIdentifier;
+  content: string;
+}
+
+function DraggableItem({ id, content }: DraggableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: id,
+      data: {
+        // Pass content data for the drag end handler
+        content: content,
+      },
+    });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1, // Make it semi-transparent while dragging
+    touchAction: "none", // Recommended for pointer sensor interactions
+    cursor: isDragging ? "grabbing" : "grab",
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className="bg-blue-600 p-1 rounded text-sm mb-1 list-none" // Use list-none if inside ul/ol, adjust styling as needed
+    >
+      {content}
+    </li>
+  );
+}
+
+// --- Droppable Column Component ---
+interface DroppableColumnProps {
+  id: UniqueIdentifier;
+  items: string[];
+  children: React.ReactNode; // To render the items
+}
+
+function DroppableColumn({ id, items, children }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: id,
+  });
+
+  const style = {
+    border: isOver ? "2px dashed #4ade80" : "2px solid transparent", // Highlight when dragging over
+    transition: "border-color 0.2s ease",
+    minHeight: "100px", // Ensure columns have some height even if empty
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-green-800 text-white flex-1 m-3 p-2 rounded" // Original styling
+    >
+      {/* Render the draggable items passed as children */}
+      <ul className="space-y-1">{children}</ul>
+      {/* Optional: Placeholder when empty and being dragged over */}
+      {isOver && items.length === 0 && (
+        <div className="text-center text-gray-400 italic text-xs p-2">
+          Drop here
+        </div>
+      )}
+      {/* Optional: Indication if column is empty */}
+      {items.length === 0 && !isOver && (
+        <div className="text-center text-gray-500 italic text-xs p-2">
+          Empty
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Main Page Component ---
+export default function ProfilePage() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const tomorrow = addDays(new Date(), 1);
+
+  const initialMeals = ["Завтрак", "Перекус", "Обед", "Перекус", "Ужин"];
+  const initialMealContents: string[][] = [
+    ["Овсянка", "Банан"],
+    ["Йогурт"],
+    ["Курица", "Рис", "Овощи"],
+    ["Орехи", "Яблоко"],
+    ["Рыба", "Картофель"],
+  ];
+
+  // State to manage meals and their contents
+  const [meals, setMeals] = useState(initialMeals);
+  const [mealContents, setMealContents] = useState(initialMealContents);
+
+  // Define sensors for drag detection (Pointer for mouse/touch, Keyboard for accessibility)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      // Require the mouse to move by 10 pixels before starting a drag
+      // Useful to prevent drags triggered by clicks
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  // --- Drag End Handler ---
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    // Ensure dropped over a valid droppable area
+    if (over && active.id !== over.id) {
+      // Find which column the item came from and which it's going to
+      const activeIdString = String(active.id); // e.g., "item-0-1" (column 0, item 1)
+      const overIdString = String(over.id); // e.g., "column-2"
+
+      // Extract indices from the active item ID
+      const parts = activeIdString.split("-"); // ['item', 'columnIndex', 'itemIndex']
+      if (parts.length !== 3 || parts[0] !== "item") return; // Basic validation
+
+      const sourceColumnIndex = parseInt(parts[1], 10);
+      // const sourceItemIndex = parseInt(parts[2], 10); // We have the content from active.data
+
+      // Extract index from the target column ID
+      const overParts = overIdString.split("-"); // ['column', 'columnIndex']
+      if (overParts.length !== 2 || overParts[0] !== "column") return; // Basic validation
+
+      const targetColumnIndex = parseInt(overParts[1], 10);
+
+      // Get the content of the dragged item
+      const draggedItemContent = active.data.current?.content;
+
+      if (
+        isNaN(sourceColumnIndex) ||
+        isNaN(targetColumnIndex) ||
+        !draggedItemContent
+      ) {
+        console.error("Error parsing drag/drop IDs or finding content");
+        return;
+      }
+
+      // Update the state
+      setMealContents((prevContents) => {
+        const newContents = prevContents.map((col) => [...col]); // Deep copy
+
+        // Find the actual index of the item in the source column (in case order changed)
+        const actualSourceItemIndex = newContents[sourceColumnIndex].findIndex(
+          (item) => item === draggedItemContent // Assuming item content is unique within column for this simple case
+        );
+
+        if (actualSourceItemIndex === -1) {
+          console.warn("Dragged item not found in source column state");
+          return prevContents; // Return previous state if item not found
+        }
+
+        // 1. Remove item from the source column
+        const [removedItem] = newContents[sourceColumnIndex].splice(
+          actualSourceItemIndex,
+          1
+        );
+
+        // 2. Add item to the target column
+        newContents[targetColumnIndex].push(removedItem);
+
+        return newContents;
+      });
+    }
+  }
+
+  return (
+    // Wrap the relevant part with DndContext
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <main className="w-full p-5">
+        <h1 className="text-3xl font-bold mb-4">Добро пожаловать!</h1>
+
+        <div className="grid grid-cols-[5fr_1fr] gap-4">
+          {/* Левая часть: меню на каждый день */}
+          <div className="bg-muted rounded-xl p-4">
+            {/* Column Titles */}
+            <div className="flex mb-2">
+              {meals.map((meal, index) => (
+                <p key={index} className="text-xm font-bold flex-1 text-center">
+                  {meal}
+                </p>
+              ))}
+            </div>
+            {/* Droppable Columns */}
+            <div className="flex">
+              {mealContents.map((products, colIndex) => (
+                <DroppableColumn
+                  key={`column-${colIndex}`}
+                  id={`column-${colIndex}`} // Unique ID for the droppable column
+                  items={products}
+                >
+                  {products.map((product, pIndex) => (
+                    <DraggableItem
+                      key={`item-${colIndex}-${pIndex}`} // Unique ID for the draggable item
+                      id={`item-${colIndex}-${pIndex}`}
+                      content={product}
+                    />
+                  ))}
+                </DroppableColumn>
+              ))}
+            </div>
+          </div>
+
+          {/* Правая часть с календарем (remains unchanged) */}
+          <div className="bg-muted/40 rounded-xl p-4 flex flex-col gap-4">
+            <label className="text-sm font-medium">Дата</label>
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              className="rounded-md border shadow"
+              modifiers={{ special: tomorrow }}
+              modifiersClassNames={{ special: "bg-green-200 text-green-900" }}
+            />
+          </div>
+        </div>
+      </main>
+    </DndContext>
+  );
+}
